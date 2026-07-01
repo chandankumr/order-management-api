@@ -1,6 +1,7 @@
 package com.assignment.controller;
 
 import com.assignment.dto.CreateOrderRequest;
+import com.assignment.dto.MonthlyRevenueResponse;
 import com.assignment.dto.OrderResponse;
 import com.assignment.service.OrderService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -9,14 +10,13 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Pattern;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/orders")
@@ -53,14 +53,17 @@ public class OrderController {
     @GetMapping
     @Operation(summary = "Get orders by month", description = "Retrieves all orders placed in a specific month.")
     public ResponseEntity<List<OrderResponse>> getOrdersByMonth(
-            @Parameter(description = "Month in YYYY-MM format", example = "2026-07") @RequestParam String month) {
+            @Parameter(description = "Month in YYYY-MM format", example = "2026-07") 
+            @RequestParam 
+            @Pattern(regexp = "^\\d{4}-(0[1-9]|1[0-2])$", message = "Month must be in YYYY-MM format") 
+            String month) {
         YearMonth yearMonth = YearMonth.parse(month); 
         return ResponseEntity.ok(orderService.getOrdersByMonth(yearMonth));
     }
 
     @GetMapping("/revenue")
-    @Operation(summary = "Calculate monthly revenue", description = "Calculates total revenue grouped by month. Applies 10% discount for PREMIUM customers and ignores negative/null amounts.")
-    public ResponseEntity<Map<YearMonth, BigDecimal>> getMonthlyRevenue() {
+    @Operation(summary = "Calculate monthly revenue", description = "Calculates total revenue grouped by month. Applies discount for PREMIUM customers and ignores negative/null amounts. Results are sorted chronologically.")
+    public ResponseEntity<List<MonthlyRevenueResponse>> getMonthlyRevenue() {
         return ResponseEntity.ok(orderService.calculateMonthlyRevenue());
     }
 }

@@ -1,8 +1,9 @@
 package com.assignment.dto;
 
-import com.assignment.domain.CustomerType;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+
+import com.assignment.enums.CustomerType;
 
 public record OrderResponse(
         Long id,

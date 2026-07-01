@@ -1,20 +1,22 @@
 package com.assignment.controller;
 
-import com.assignment.domain.CustomerType;
 import com.assignment.dto.CreateOrderRequest;
+import com.assignment.dto.MonthlyRevenueResponse;
+import com.assignment.enums.CustomerType;
 import com.assignment.service.OrderService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+// UPDATED: Using the new MockitoBean for Spring Boot 3.4+ to remove deprecation warnings
+import org.springframework.test.context.bean.override.mockito.MockitoBean; 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.util.List;
-import java.util.Map;
 
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -29,10 +31,12 @@ class OrderControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockBean
+    // UPDATED: Changed from @MockBean to @MockitoBean
+    @MockitoBean
     private OrderService orderService;
 
     @Test
+    @DisplayName("Should create order and return 201 status")
     void shouldCreateOrder() throws Exception {
         // Arrange
         CreateOrderRequest request = new CreateOrderRequest(
@@ -49,6 +53,7 @@ class OrderControllerTest {
     }
 
     @Test
+    @DisplayName("Should return 400 for invalid request")
     void shouldReturnBadRequestForInvalidRequest() throws Exception {
         // Arrange
         String invalidRequest = """
@@ -67,6 +72,7 @@ class OrderControllerTest {
     }
 
     @Test
+    @DisplayName("Should get orders by month")
     void shouldGetOrdersByMonth() throws Exception {
         // Arrange
         YearMonth currentMonth = YearMonth.now();
@@ -80,15 +86,17 @@ class OrderControllerTest {
     }
 
     @Test
+    @DisplayName("Should get monthly revenue as a list of responses")
     void shouldGetMonthlyRevenue() throws Exception {
         // Arrange
         YearMonth currentMonth = YearMonth.now();
+        // UPDATED: Returning the new List<MonthlyRevenueResponse> instead of Map
         when(orderService.calculateMonthlyRevenue())
-            .thenReturn(Map.of(currentMonth, new BigDecimal("1000.00")));
+            .thenReturn(List.of(new MonthlyRevenueResponse(currentMonth, new BigDecimal("1000.00"))));
 
         // Act & Assert
         mockMvc.perform(get("/orders/revenue"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$").isMap());
+            .andExpect(jsonPath("$").isArray());
     }
 }

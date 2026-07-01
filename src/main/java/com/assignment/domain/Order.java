@@ -3,6 +3,8 @@ package com.assignment.domain;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import com.assignment.enums.CustomerType;
+
 public class Order {
     private Long id;
     private String customerId;

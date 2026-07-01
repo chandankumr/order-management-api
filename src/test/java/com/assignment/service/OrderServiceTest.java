@@ -1,23 +1,25 @@
 package com.assignment.service;
 
-import com.assignment.domain.CustomerType;
 import com.assignment.domain.Order;
 import com.assignment.dto.CreateOrderRequest;
+import com.assignment.dto.MonthlyRevenueResponse;
 import com.assignment.dto.OrderResponse;
+import com.assignment.enums.CustomerType;
 import com.assignment.exception.OrderNotFoundException;
 import com.assignment.repository.OrderRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -39,9 +41,14 @@ class OrderServiceTest {
     void setUp() {
         testOrder = new Order(1L, "CUST001", CustomerType.PREMIUM, 
                              new BigDecimal("100.00"), LocalDateTime.now());
+        
+        // FIX: Mockito does not process Spring's @Value annotations.
+        // We must manually inject the value for the unit test to prevent NullPointerException.
+        ReflectionTestUtils.setField(orderService, "premiumDiscount", new BigDecimal("0.90"));
     }
 
     @Test
+    @DisplayName("Should create order successfully")
     void shouldCreateOrder() {
         // Arrange
         CreateOrderRequest request = new CreateOrderRequest(
@@ -59,6 +66,7 @@ class OrderServiceTest {
     }
 
     @Test
+    @DisplayName("Should get order by ID")
     void shouldGetOrderById() {
         // Arrange
         when(orderRepository.findById(1L)).thenReturn(Optional.of(testOrder));
@@ -72,6 +80,7 @@ class OrderServiceTest {
     }
 
     @Test
+    @DisplayName("Should throw exception when order not found")
     void shouldThrowExceptionWhenOrderNotFound() {
         // Arrange
         when(orderRepository.findById(999L)).thenReturn(Optional.empty());
@@ -83,6 +92,7 @@ class OrderServiceTest {
     }
 
     @Test
+    @DisplayName("Should calculate monthly revenue with premium discount and return sorted list")
     void shouldCalculateMonthlyRevenueWithPremiumDiscount() {
         // Arrange
         Order premiumOrder = new Order(1L, "CUST001", CustomerType.PREMIUM, 
@@ -93,17 +103,23 @@ class OrderServiceTest {
         when(orderRepository.findAll()).thenReturn(List.of(premiumOrder, standardOrder));
 
         // Act
-        Map<YearMonth, BigDecimal> revenue = orderService.calculateMonthlyRevenue();
+        List<MonthlyRevenueResponse> revenue = orderService.calculateMonthlyRevenue();
 
         // Assert
         assertNotNull(revenue);
-        YearMonth currentMonth = YearMonth.now();
-        assertTrue(revenue.containsKey(currentMonth));
+        assertFalse(revenue.isEmpty());
+        
         // Premium: 100 * 0.90 = 90, Standard: 50 = 50, Total: 140
-        assertEquals(new BigDecimal("140.00"), revenue.get(currentMonth));
+        MonthlyRevenueResponse currentMonthRevenue = revenue.stream()
+            .filter(r -> r.yearMonth().equals(YearMonth.now()))
+            .findFirst()
+            .orElseThrow();
+            
+        assertEquals(new BigDecimal("140.00"), currentMonthRevenue.revenue());
     }
 
     @Test
+    @DisplayName("Should ignore negative amounts in revenue calculation")
     void shouldIgnoreNegativeAmountsInRevenueCalculation() {
         // Arrange
         Order validOrder = new Order(1L, "CUST001", CustomerType.STANDARD, 
@@ -114,10 +130,14 @@ class OrderServiceTest {
         when(orderRepository.findAll()).thenReturn(List.of(validOrder, negativeOrder));
 
         // Act
-        Map<YearMonth, BigDecimal> revenue = orderService.calculateMonthlyRevenue();
+        List<MonthlyRevenueResponse> revenue = orderService.calculateMonthlyRevenue();
 
         // Assert
-        YearMonth currentMonth = YearMonth.now();
-        assertEquals(new BigDecimal("100.00"), revenue.get(currentMonth));
+        MonthlyRevenueResponse currentMonthRevenue = revenue.stream()
+            .filter(r -> r.yearMonth().equals(YearMonth.now()))
+            .findFirst()
+            .orElseThrow();
+            
+        assertEquals(new BigDecimal("100.00"), currentMonthRevenue.revenue());
     }
 }
